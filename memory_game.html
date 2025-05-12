@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>神経衰弱 - トランプバージョン</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      margin: 10px;
+      background-color: #f0f0f0;
+    }
+
+    h1 {
+      margin: 20px 0 10px;
+    }
+
+    #start-btn {
+      padding: 10px 20px;
+      font-size: 16px;
+      margin: 10px;
+      cursor: pointer;
+    }
+
+    #timer {
+      font-size: 18px;
+      margin-bottom: 10px;
+      color: #333;
+    }
+
+    #game-board {
+      display: grid;
+      grid-template-columns: repeat(20, 40px);
+      gap: 6px;
+      justify-content: center;
+      margin: 0 auto;
+      max-width: 100%;
+    }
+
+    .card {
+      width: 40px;
+      height: 60px;
+      background-color: lightgray;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      cursor: pointer;
+      border-radius: 4px;
+      user-select: none;
+      box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.2);
+    }
+
+    .card.revealed {
+      background-color: white;
+      font-weight: bold;
+    }
+
+    #scoreboard {
+      margin-top: 20px;
+      font-size: 18px;
+    }
+  </style>
+</head>
+<body>
+  <h1>神経衰弱 - トランプバージョン</h1>
+  <button id="start-btn">スタート</button>
+  <div id="timer">残り時間: 5:00</div>
+  <div id="scoreboard">
+    <div>プレイヤー1: <span id="player1-score">0</span>点</div>
+    <div>プレイヤー2: <span id="player2-score">0</span>点</div>
+    <div>コンボ数: <span id="combo-count">0</span></div>
+  </div>
+  <div id="game-board"></div>
+
+  <script>
+    const suits = ["♠", "♦", "♣", "♥"];
+    const ranks = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
+    const board = document.getElementById("game-board");
+    const timerDisplay = document.getElementById("timer");
+    const startButton = document.getElementById("start-btn");
+    const player1ScoreDisplay = document.getElementById("player1-score");
+    const player2ScoreDisplay = document.getElementById("player2-score");
+    const comboCountDisplay = document.getElementById("combo-count");
+
+    let deck = [];
+    let symbols = [];
+    let selectedCards = [];
+    let matched = [];
+    let isChecking = false;
+    let gameOver = false;
+    let timer;
+    let timeLeft = 300;
+    let playerTurn = 1; // 1: プレイヤー1, 2: プレイヤー2
+    let player1Score = 0;
+    let player2Score = 0;
+    let comboCount = 0;
+
+    function generateDeck() {
+      deck = [];
+      suits.forEach(suit => {
+        ranks.forEach(rank => {
+          deck.push(`${rank}${suit}`);
+        });
+      });
+      deck.sort(() => Math.random() - 0.5);
+      const selected = deck.slice(0, 50);
+      symbols = [...selected, ...selected];
+      symbols.sort(() => Math.random() - 0.5);
+    }
+
+    function startGame() {
+      board.innerHTML = "";
+      selectedCards = [];
+      matched = [];
+      isChecking = false;
+      gameOver = false;
+      timeLeft = 300;
+      comboCount = 0;
+      playerTurn = 1;
+      player1Score = 0;
+      player2Score = 0;
+      player1ScoreDisplay.textContent = player1Score;
+      player2ScoreDisplay.textContent = player2Score;
+      comboCountDisplay.textContent = comboCount;
+
+      clearInterval(timer);
+      timerDisplay.textContent = "残り時間: 5:00";
+
+      generateDeck();
+      createBoard();
+      startTimer();
+    }
+
+    function startTimer() {
+      timer = setInterval(() => {
+        if (timeLeft <= 0) {
+          clearInterval(timer);
+          gameOver = true;
+          timerDisplay.textContent = "時間切れ！";
+          alert("⌛ 時間切れです！");
+          return;
+        }
+        timeLeft--;
+        const minutes = Math.floor(timeLeft / 60);
+        const seconds = timeLeft % 60;
+        timerDisplay.textContent = `残り時間: ${minutes}:${seconds.toString().padStart(2, '0')}`;
+      }, 1000);
+    }
+
+    function createBoard() {
+      symbols.forEach((symbol, index) => {
+        const card = document.createElement("div");
+        card.classList.add("card");
+        card.dataset.index = index;
+        card.textContent = "";
+
+        card.addEventListener("click", () => {
+          if (gameOver || isChecking || matched.includes(index) || selectedCards.some(c => c.index === index)) return;
+
+          card.textContent = symbol;
+          card.classList.add("revealed");
+          selectedCards.push({ index, symbol, element: card });
+
+          if (selectedCards.length === 2) {
+            isChecking = true;
+            const [first, second] = selectedCards;
+
+            if (first.symbol === second.symbol) {
+              matched.push(first.index, second.index);
+              selectedCards = [];
+              isChecking = false;
+              comboCount++;
+              updateScore();
+
+              if (comboCount >= 3) {
+                alert(`🎉 コンボ達成！コンボ数: ${comboCount}`);
+              }
+
+              if (matched.length === symbols.length) {
+                clearInterval(timer);
+                setTimeout(() => alert("🎉 クリアおめでとう！"), 200);
+              }
+            } else {
+              setTimeout(() => {
+                first.element.textContent = "";
+                second.element.textContent = "";
+                first.element.classList.remove("revealed");
+                second.element.classList.remove("revealed");
+                selectedCards = [];
+                isChecking = false;
+                comboCount = 0; // コンボリセット
+                comboCountDisplay.textContent = comboCount;
+              }, 800);
+            }
+          }
+        });
+
+        board.appendChild(card);
+      });
+    }
+
+    function updateScore() {
+      if (playerTurn === 1) {
+        player1Score += comboCount * 10;
+        player1ScoreDisplay.textContent = player1Score;
+      } else {
+        player2Score += comboCount * 10;
+        player2ScoreDisplay.textContent = player2Score;
+      }
+
+      comboCountDisplay.textContent = comboCount;
+
+      // プレイヤーターン切り替え
+      playerTurn = playerTurn === 1 ? 2 : 1;
+    }
+
+    startButton.addEventListener("click", startGame);
+  </script>
+</body>
+</html>
